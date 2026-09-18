@@ -102,7 +102,12 @@ def one_point_crossover(
         return parent1, parent2
 
     # TODO: Add your code here
-    raise NotImplementedError("Punto 3: implemente one_point_crossover")
+    cut = rng.randint(1, len(parent1) - 1)
+
+    child1 = parent1[:cut] + parent2[cut:]
+    child2 = parent2[:cut] + parent1[cut:]
+
+    return child1, child2
 
 
 def swap_mutation(
@@ -122,7 +127,32 @@ def swap_mutation(
     - Retorne una tupla nueva; no modifique el individuo recibido.
     """
     # TODO: Add your code here
-    raise NotImplementedError("Punto 3: implemente swap_mutation")
+    random_value = rng.random()
+
+    if random_value >= mutation_probability:
+        return individual
+
+    active_indices = []
+    inactive_indices = []
+
+    for index in range(len(individual)):
+        if individual[index] == 1:
+            active_indices.append(index)
+        else:
+            inactive_indices.append(index)
+
+    if len(active_indices) == 0 or len(inactive_indices) == 0:
+        return individual
+
+    active_index = rng.choice(active_indices)
+    inactive_index = rng.choice(inactive_indices)
+
+    mutated_individual = list(individual)
+
+    mutated_individual[active_index] = 0
+    mutated_individual[inactive_index] = 1
+
+    return tuple(mutated_individual)
 
 
 def genetic_algorithm(
@@ -159,4 +189,85 @@ def genetic_algorithm(
         raise ValueError("elite_size debe estar entre 0 y population_size")
 
     # TODO: Add your code here
-    raise NotImplementedError("Punto 3: implemente genetic_algorithm")
+    
+    population = problem.initial_population(population_size, rng)
+
+    scores = []
+    evaluations = 0
+
+    for individual in population:
+        score = configuration_score(problem, individual)
+        scores.append(score)
+        evaluations += 1
+
+    best_individual = population[0]
+    best_score = scores[0]
+
+    for index in range(1, len(population)):
+        if scores[index] > best_score:
+            best_individual = population[index]
+            best_score = scores[index]
+
+    history = [best_individual]
+    score_history = [best_score]
+
+    for generation in range(generations):
+        new_population = []
+        available_indices = list(range(len(population)))
+
+        for _ in range(elite_size):
+            best_elite_index = available_indices[0]
+
+            for index in available_indices:
+                if scores[index] > scores[best_elite_index]:
+                    best_elite_index = index
+
+            new_population.append(population[best_elite_index])
+            available_indices.remove(best_elite_index)
+
+        while len(new_population) < population_size:
+            parent1 = problem.tournament_select(population, scores, rng)
+            parent2 = problem.tournament_select(population, scores, rng)
+
+            child1, child2 = one_point_crossover(parent1, parent2, rng)
+
+            child1 = problem.repair_configuration(child1, rng)
+            child1 = swap_mutation(child1, mutation_probability, rng)
+            new_population.append(child1)
+
+            if len(new_population) < population_size:
+                child2 = problem.repair_configuration(child2, rng)
+                child2 = swap_mutation(child2, mutation_probability, rng)
+                new_population.append(child2)
+
+        population = new_population
+        scores = []
+
+        for individual in population:
+            score = configuration_score(problem, individual)
+            scores.append(score)
+            evaluations += 1
+
+        generation_best_individual = population[0]
+        generation_best_score = scores[0]
+
+        for index in range(1, len(population)):
+            if scores[index] > generation_best_score:
+                generation_best_individual = population[index]
+                generation_best_score = scores[index]
+
+        if generation_best_score > best_score:
+            best_individual = generation_best_individual
+            best_score = generation_best_score
+
+        history.append(best_individual)
+        score_history.append(best_score)
+
+    return OptimizationResult(
+        best_configuration=best_individual,
+        best_score=best_score,
+        evaluations=evaluations,
+        iterations=generations,
+        history=history,
+        score_history=score_history,
+    )
