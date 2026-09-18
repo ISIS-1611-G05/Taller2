@@ -1,6 +1,7 @@
 import math
 import random
 
+from RedCentinela.RedCentinela.optimization import problem
 from optimization.problem import SmartGridOptimizationProblem
 from optimization.result import Configuration, OptimizationResult
 
@@ -16,7 +17,8 @@ def configuration_score(
       redundancia y exposición en ese orden.
     """
     # TODO: Add your code here
-    raise NotImplementedError("Punto 1: implemente configuration_score")
+    coverage, redundancy, exposure = problem.score_components(configuration)
+    return coverage - redundancy - exposure
 
 
 def hill_climbing(
@@ -39,7 +41,55 @@ def hill_climbing(
       mejoras aceptadas antes de retornar el OptimizationResult.
     """
     # TODO: Add your code here
-    raise NotImplementedError("Punto 1: implemente hill_climbing")
+    if not problem.is_valid(initial_configuration):
+        raise ValueError("La configuración inicial debe ser válida")
+
+    current = initial_configuration
+    current_score = configuration_score(problem, current)
+
+    history = [current]
+    score_history = [current_score]
+
+    evaluations = 1
+    iterations = 0
+
+    while iterations < max_iterations:
+        neighbors = problem.neighbors(current)
+
+        if not neighbors:
+            break
+
+        best_neighbor = neighbors[0]
+        best_neighbor_score = configuration_score(problem, best_neighbor)
+        evaluations += 1
+
+        for neighbor in neighbors[1:]:
+            score = configuration_score(problem, neighbor)
+            evaluations += 1
+
+            if score > best_neighbor_score:
+                best_neighbor = neighbor
+                best_neighbor_score = score
+
+        if best_neighbor_score <= current_score:
+            break
+
+        current = best_neighbor
+        current_score = best_neighbor_score
+
+        history.append(current)
+        score_history.append(current_score)
+
+        iterations += 1
+
+    return OptimizationResult(
+        best_configuration=current,
+        best_score=current_score,
+        evaluations=evaluations,
+        iterations=iterations,
+        history=history,
+        score_history=score_history,
+    )
 
 
 def cooling_schedule(initial_temperature: float, cooling_rate: float, iteration: int) -> float:
@@ -49,7 +99,7 @@ def cooling_schedule(initial_temperature: float, cooling_rate: float, iteration:
     Esta función se invoca desde simulated_annealing en cada iteración.
     """
     # TODO: Add your code here
-    raise NotImplementedError("Punto 2: implemente cooling_schedule")
+    return initial_temperature * (cooling_rate ** iteration)
 
 
 def simulated_annealing(
@@ -80,7 +130,75 @@ def simulated_annealing(
     minimum_temperature = 1e-9
 
     # TODO: Add your code here
-    raise NotImplementedError("Punto 2: implemente simulated_annealing")
+    if not problem.is_valid(initial_configuration):
+        raise ValueError("La configuración inicial debe ser válida")
+
+    if initial_temperature <= 0:
+        raise ValueError("La temperatura inicial debe ser positiva")
+
+    if not 0 < cooling_rate < 1:
+        raise ValueError("El cooling_rate debe estar entre 0 y 1")
+
+    current = initial_configuration
+    current_score = configuration_score(problem, current)
+
+    best = current
+    best_score = current_score
+
+    history = [current]
+    score_history = [current_score]
+
+    evaluations = 1
+    iterations = 0
+
+    while iterations < max_iterations:
+        temperature = cooling_schedule(
+            initial_temperature,
+            cooling_rate,
+            iterations
+        )
+
+        if temperature <= minimum_temperature:
+            break
+
+        neighbors = problem.neighbors(current)
+
+        if not neighbors:
+            break
+
+        candidate = rng.choice(neighbors)
+        candidate_score = configuration_score(problem, candidate)
+        evaluations += 1
+
+        delta = candidate_score - current_score
+
+        if delta > 0:
+            accept = True
+        else:
+            probability = math.exp(delta / temperature)
+            accept = rng.random() < probability
+
+        if accept:
+            current = candidate
+            current_score = candidate_score
+
+        if current_score > best_score:
+            best = current
+            best_score = current_score
+
+        history.append(current)
+        score_history.append(current_score)
+
+        iterations += 1
+
+    return OptimizationResult(
+        best_configuration=best,
+        best_score=best_score,
+        evaluations=evaluations,
+        iterations=iterations,
+        history=history,
+        score_history=score_history,
+    )
 
 
 def one_point_crossover(
