@@ -49,7 +49,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
             self.nodes_evaluated += 1
             if node.is_win() or node.is_lose() or plies_left == 0:
                 return evaluation_function(node)
-              
+
             legal_actions = node.get_legal_actions(agent_index)
             if not legal_actions:
                 return evaluation_function(node)
@@ -115,5 +115,79 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         - En MAX actualice alpha y corte si valor >= beta; en MIN actualice beta
           y corte si valor <= alpha.
         """
-        # TODO: Add your code here
-        raise NotImplementedError("Punto 5: implemente AlphaBetaAgent.get_action")
+        self.nodes_evaluated = 0
+
+        def alphabeta(
+            node: GameState,
+            agent_index: int,
+            plies_left: int,
+            alpha: float,
+            beta: float,
+        ) -> float:
+            self.nodes_evaluated += 1
+            if node.is_win() or node.is_lose() or plies_left == 0:
+                return evaluation_function(node)
+
+            legal_actions = node.get_legal_actions(agent_index)
+            if not legal_actions:
+                return evaluation_function(node)
+
+            next_agent = (agent_index + 1) % node.get_num_agents()
+            if agent_index == 0:
+                value = float("-inf")
+                for action in legal_actions:
+                    successor_value = alphabeta(
+                        node.generate_successor(agent_index, action),
+                        next_agent,
+                        plies_left - 1,
+                        alpha,
+                        beta,
+                    )
+                    value = max(value, successor_value)
+                    alpha = max(alpha, value)
+                    if value >= beta:
+                        break
+                return value
+
+            value = float("inf")
+            for action in legal_actions:
+                successor_value = alphabeta(
+                    node.generate_successor(agent_index, action),
+                    next_agent,
+                    plies_left - 1,
+                    alpha,
+                    beta,
+                )
+                value = min(value, successor_value)
+                beta = min(beta, value)
+                if value <= alpha:
+                    break
+            return value
+
+        self.nodes_evaluated = 1
+        if state.is_win() or state.is_lose():
+            return None
+
+        legal_actions = state.get_legal_actions(0)
+        if not legal_actions:
+            return None
+
+        best_action = legal_actions[0]
+        best_value = float("-inf")
+        alpha = float("-inf")
+        beta = float("inf")
+        remaining_depth = self.depth - 1
+        for action in legal_actions:
+            value = alphabeta(
+                state.generate_successor(0, action),
+                1,
+                remaining_depth,
+                alpha,
+                beta,
+            )
+            if value > best_value:
+                best_value = value
+                best_action = action
+            alpha = max(alpha, best_value)
+
+        return best_action

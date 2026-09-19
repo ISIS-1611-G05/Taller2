@@ -1,7 +1,6 @@
 import math
 import random
 
-from RedCentinela.RedCentinela.optimization import problem
 from optimization.problem import SmartGridOptimizationProblem
 from optimization.result import Configuration, OptimizationResult
 
